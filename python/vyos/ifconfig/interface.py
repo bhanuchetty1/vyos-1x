@@ -1378,7 +1378,7 @@ class Interface(Control):
             if dict_search('dhcp_options.host_name', self.config) == None:
                 # read configured system hostname.
                 # maybe change to vyos-hostsd client ???
-                hostname = 'vyos'
+                hostname = 'qnos'
                 hostname_file = '/etc/hostname'
                 if os.path.isfile(hostname_file):
                     hostname = read_file(hostname_file)

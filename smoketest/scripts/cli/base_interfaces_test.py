@@ -240,7 +240,7 @@ class BasicInterfaceTest:
 
             client_id = 'VyOS-router'
             distance = '100'
-            hostname = 'vyos'
+            hostname = 'qnos'
             vendor_class_id = 'vyos-vendor'
             user_class = 'vyos'
 
