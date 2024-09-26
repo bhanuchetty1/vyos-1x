@@ -30,7 +30,7 @@ PRELOGIN_NET_FILE = r'/etc/issue.net'
 POSTLOGIN_FILE = r'/etc/motd'
 
 default_config_data = {
-    'issue': 'Welcome to QnOS - \\n \\l\n\n',
+    'issue': 'Welcome to QNOS - \\n \\l\n\n',
     'issue_net': ''
 }
 
