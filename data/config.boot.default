@@ -35,8 +35,8 @@ system {
     login {
         user qnos {
             authentication {
-                encrypted-password ""
-                plaintext-password "qnos"
+                encrypted-password "$1$xyz$fOdvM41Le8SJzIGwurgd11"
+                plaintext-password ""
             }
         }
     }
