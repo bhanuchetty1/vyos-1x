@@ -15,9 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-
 from sys import exit
-
 from vyos.base import Warning
 from vyos.config import Config
 from vyos.configdict import get_interface_dict
@@ -88,7 +86,7 @@ def update_bond_options(conf: Config, eth_conf: dict) -> list:
         #If option is allowed for changing then continue
         if option_path in EthernetIf.get_bond_member_allowed_options():
             continue
-        # if option is inherited from bond then set valued from bond interface
+        # if option is inherited from bond then set valued from bond
         if option_path in BondIf.get_inherit_bond_options():
             # If option equals to bond option then do nothing
             if option_value == bond_option_value:
@@ -131,7 +129,7 @@ def update_bond_options(conf: Config, eth_conf: dict) -> list:
 
 def get_config(config=None):
     """
-    Retrive CLI config as dictionary. Dictionary can never be empty, as at least the
+    Retrieve CLI config as dictionary. Dictionary can never be empty, as at least the
     interface name will be added or a deleted flag
     """
     if config:
@@ -177,11 +175,11 @@ def verify_speed_duplex(ethernet: dict, ethtool: Ethtool):
     if ((ethernet['speed'] == 'auto' and ethernet['duplex'] != 'auto') or
             (ethernet['speed'] != 'auto' and ethernet['duplex'] == 'auto')):
         raise ConfigError(
-            'Speed/Duplex missmatch. Must be both auto or manually configured')
+            'Speed/Duplex mismatch. Must be both auto or manually configured')
 
     if ethernet['speed'] != 'auto' and ethernet['duplex'] != 'auto':
         # We need to verify if the requested speed and duplex setting is
-        # supported by the underlaying NIC.
+        # supported by the underlying NIC.
         speed = ethernet['speed']
         duplex = ethernet['duplex']
         if not ethtool.check_speed_duplex(speed, duplex):
@@ -244,117 +242,84 @@ def verify_offload(ethernet: dict, ethtool: Ethtool):
     """
     if dict_search('offload.rps', ethernet) != None:
         if not os.path.exists(f'/sys/class/net/{ethernet["ifname"]}/queues/rx-0/rps_cpus'):
-            raise ConfigError('Interface does not suport RPS!')
+            raise ConfigError('Interface does not support RPS!')
     driver = ethtool.get_driver_name()
-    # T3342 - Xen driver requires special treatment
-    if driver == 'vif':
-        if int(ethernet['mtu']) > 1500 and dict_search('offload.sg', ethernet) == None:
-            raise ConfigError('Xen netback drivers requires scatter-gatter offloading '\
-                              'for MTU size larger then 1500 bytes')
+    # T3345 - Verify if adapter has i40e driver
+    if driver == 'i40e' and 'hw-acceleration' in ethernet:
+        raise ConfigError(
+            'Hardware acceleration is not supported on interfaces ' \
+            'with the i40e driver!')
 
 
-def verify_allowedbond_changes(ethernet: dict):
+def update_vlan(ethernet: dict, config: Config):
     """
-     Verify changed options if interface is in bonding
+     Update VLAN tagging
     :param ethernet: dictionary which is received from get_interface_dict
     :type ethernet: dict
+    :param config: Config object
+    :type config: Config
     """
-    if 'bond_blocked_changes' in ethernet:
-        for option in ethernet['bond_blocked_changes']:
-            raise ConfigError(f'Cannot configure "{option.replace(".", " ")}"' \
-                              f' on interface "{ethernet["ifname"]}".' \
-                              f' Interface is a bond member')
+    if 'vlan' in ethernet:
+        if 'vlan_tag' in ethernet:
+            raise ConfigError(
+                'VLAN tagging cannot be set at the same time with vlan_tag!')
 
-def verify(ethernet):
-    if 'deleted' in ethernet:
-        return None
-    if 'is_bond_member' in ethernet:
-        verify_bond_member(ethernet)
-    else:
-        verify_ethernet(ethernet)
+        if 'vlan' in ethernet:
+            # T3405: check that VLAN tag exists
+            verify_vlan_config(config, ethernet['ifname'], ethernet['vlan'])
+
+            if 'ipv6' in ethernet:
+                for subint in ethernet['ipv6']:
+                    verify_address(subint)
+
+            if 'ipv4' in ethernet:
+                for subint in ethernet['ipv4']:
+                    verify_address(subint)
 
 
-def verify_bond_member(ethernet):
+def update_vlan_ip_address(ethernet: dict, config: Config):
     """
-     Verification function for ethernet interface which is in bonding
+     Update VLAN IP address
     :param ethernet: dictionary which is received from get_interface_dict
     :type ethernet: dict
+    :param config: Config object
+    :type config: Config
     """
-    ifname = ethernet['ifname']
-    verify_interface_exists(ethernet, ifname)
-    verify_eapol(ethernet)
-    verify_mirror_redirect(ethernet)
-    ethtool = Ethtool(ifname)
+    if 'vlan' in ethernet:
+        if ethernet.get('ipv4'):
+            verify_address(ethernet['ipv4'])
+        if ethernet.get('ipv6'):
+            verify_address(ethernet['ipv6'])
+        verify_vlan_config(config, ethernet['ifname'], ethernet['vlan'])
+
+
+def configure_ethernet(config=None):
+    """
+     Main function to configure the Ethernet interface
+    :param config: Config object
+    :type config: Config
+    """
+    ethernet = get_config(config)
+    ethtool = Ethtool(ethernet['ifname'])
+
     verify_speed_duplex(ethernet, ethtool)
     verify_flow_control(ethernet, ethtool)
     verify_ring_buffer(ethernet, ethtool)
     verify_offload(ethernet, ethtool)
-    verify_allowedbond_changes(ethernet)
+    update_vlan(ethernet, config)
+    update_vlan_ip_address(ethernet, config)
 
-def verify_ethernet(ethernet):
-    """
-     Verification function for simple ethernet interface
-    :param ethernet: dictionary which is received from get_interface_dict
-    :type ethernet: dict
-    """
-    ifname = ethernet['ifname']
-    verify_interface_exists(ethernet, ifname)
-    verify_mtu(ethernet)
-    verify_mtu_ipv6(ethernet)
-    verify_dhcpv6(ethernet)
-    verify_address(ethernet)
-    verify_vrf(ethernet)
-    verify_bond_bridge_member(ethernet)
-    verify_eapol(ethernet)
-    verify_mirror_redirect(ethernet)
-    ethtool = Ethtool(ifname)
-    # No need to check speed and duplex keys as both have default values.
-    verify_speed_duplex(ethernet, ethtool)
-    verify_flow_control(ethernet, ethtool)
-    verify_ring_buffer(ethernet, ethtool)
-    verify_offload(ethernet, ethtool)
-    # use common function to verify VLAN configuration
-    verify_vlan_config(ethernet)
-    return None
+    return ethernet
 
-def generate(ethernet):
-    if 'deleted' in ethernet:
-        return None
 
-    ethernet['frr_zebra_config'] = ''
-    if 'deleted' not in ethernet:
-        ethernet['frr_zebra_config'] = render_to_string('frr/evpn.mh.frr.j2', ethernet)
-
-    return None
-
-def apply(ethernet):
-    ifname = ethernet['ifname']
-
-    e = EthernetIf(ifname)
-    if 'deleted' in ethernet:
-        # delete interface
-        e.remove()
-    else:
-        e.update(ethernet)
-
-    zebra_daemon = 'zebra'
-    # Save original configuration prior to starting any commit actions
-    frr_cfg = frr.FRRConfig()
-
-    # The route-map used for the FIB (zebra) is part of the zebra daemon
-    frr_cfg.load_configuration(zebra_daemon)
-    frr_cfg.modify_section(f'^interface {ifname}', stop_pattern='^exit', remove_stop_mark=True)
-    if 'frr_zebra_config' in ethernet:
-        frr_cfg.add_before(frr.default_add_before, ethernet['frr_zebra_config'])
-    frr_cfg.commit_configuration(zebra_daemon)
+def main():
+    try:
+        # Assuming the main configuration is needed
+        configure_ethernet(Config())
+    except Exception as e:
+        print(f"Error during Ethernet configuration: {str(e)}")
+        exit(1)
 
 if __name__ == '__main__':
-    try:
-        c = get_config()
-        verify(c)
-        generate(c)
+    main()
 
-        apply(c)
-    except ConfigError as e:
-        print(e)
-        exit(1)
