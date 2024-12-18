@@ -1,17 +1,17 @@
 # These rules use vyos_net_name to persistently name network interfaces
 # per "hwid" association in the VyOS configuration file.
 
-ACTION!="add", 				GOTO="vyos_net_end"
-SUBSYSTEM!="net",			GOTO="vyos_net_end"
+ACTION!="add",                          GOTO="vyos_net_end"
+SUBSYSTEM!="net",                       GOTO="vyos_net_end"
 
 # Do name change for ethernet and wireless devices only
-KERNEL!="eth*|wlan*|e*", 			GOTO="vyos_net_end"
+KERNEL!="eth*_*|wlan*|e*",                        GOTO="vyos_net_end"
 
 # ignore "secondary" monitor interfaces of mac80211 drivers
-KERNEL=="wlan*", ATTRS{type}=="803",	GOTO="vyos_net_end"
+KERNEL=="wlan*", ATTRS{type}=="803",    GOTO="vyos_net_end"
 
 # If using VyOS predefined names
-ENV{VYOS_IFNAME}!="eth*",	GOTO="end_vyos_predef_names"
+ENV{VYOS_IFNAME}!="eth*",       GOTO="end_vyos_predef_names"
 
 DRIVERS=="?*", PROGRAM="vyos_net_name %k $attr{address} $env{VYOS_IFNAME}", NAME="%c", GOTO="vyos_net_end"
 
@@ -21,3 +21,38 @@ LABEL="end_vyos_predef_names"
 DRIVERS=="?*", PROGRAM="vyos_net_name %k $attr{address}", NAME="%c"
 
 LABEL="vyos_net_end"
+
+# Dynamic udev rules for handling 4+4 ports and 8+4 ports combination.
+
+# 4-Port + 4-Port Module Combination
+
+# First 4-port module (0000:52:00.x) - Assign interfaces eth1_1 to eth1_4
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.3", ATTR{phys_port_id}=="00900bd7cc16", NAME:="eth1_1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.2", ATTR{phys_port_id}=="00900bd7cc15", NAME:="eth1_2"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.1", ATTR{phys_port_id}=="00900bd7cc14", NAME:="eth1_3"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.0", ATTR{phys_port_id}=="00900bd7cc13", NAME:="eth1_4"
+
+# Second 4-port module (0000:52:00.x) - Assign interfaces eth2_1 to eth2_4
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.3", ATTR{phys_port_id}=="00900bd7cc2a", NAME:="eth2_1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.2", ATTR{phys_port_id}=="00900bd7cc29", NAME:="eth2_2"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.1", ATTR{phys_port_id}=="00900bd7cc28", NAME:="eth2_2"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.0", ATTR{phys_port_id}=="00900bd7cc27", NAME:="eth2_2"
+
+# 8-Port + 4-Port Module Combination
+
+# 8-port module (0000:51:00.x)-(0000:52:00.x) - Assign interfaces eth1_1 to eth1_8
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.2", ATTR{phys_port_id}=="00900bd707ee", NAME:="eth1_1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.3", ATTR{phys_port_id}=="00900bd707ef", NAME:="eth1_2"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.0", ATTR{phys_port_id}=="00900bd707ec", NAME:="eth1_3"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:52:00.1", ATTR{phys_port_id}=="00900bd707ed", NAME:="eth1_4"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.2", ATTR{phys_port_id}=="00900bd707ea", NAME:="eth1_5"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.3", ATTR{phys_port_id}=="00900bd707eb", NAME:="eth1_6"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.0", ATTR{phys_port_id}=="00900bd707e8", NAME:="eth1_7"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:51:00.1", ATTR{phys_port_id}=="00900bd707e9", NAME:="eth1_8"
+
+# 4-port module (0000:53:00.x) - Assign interfaces eth2_1 to eth2_4
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:53:00.3", ATTR{phys_port_id}=="00900bd7cc2a", NAME:="eth2_1"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:53:00.2", ATTR{phys_port_id}=="00900bd7cc29", NAME:="eth1_2"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:53:00.1", ATTR{phys_port_id}=="00900bd7cc28", NAME:="eth2_3"
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="0000:53:00.0", ATTR{phys_port_id}=="00900bd7cc27", NAME:="eth2_4"
+
