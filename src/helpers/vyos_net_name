@@ -56,17 +56,28 @@ def find_available(intfs: dict, prefix: str) -> str:
     return f'{prefix}{len(index_list)}'
 
 
-def mod_ifname(ifname: str) -> str:
-    """Check interface with names eX and return ifname on the next format eth{ifindex} - 2"""
-    if re.match('^e[0-9]+$', ifname):
-        intf = ifname.split('e')
-        if intf[1]:
-            if int(intf[1]) >= 2:
-                return 'eth' + str(int(intf[1]) - 2)
-            else:
-                return 'eth' + str(intf[1])
 
-    return ifname
+
+def mod_ifname(ifname: str) -> str:
+    """Check interface with names ethX_Y (where both X and Y are numbers), 
+    and return ifname on the format eth{X-2}_{Y+1}"""
+    
+    # Match interfaces of the form ethX_Y (e.g., eth1_1, eth2_1, eth3_2, etc.)
+    match = re.match(r'^eth(\d+)_(\d+)$', ifname)
+    
+    if match:
+        # Extract the primary index X and the last digit Y from the interface name
+        primary_index = int(match.group(1))  # Extract primary index X
+        last_digit = int(match.group(2))  # Extract last digit Y
+        
+        # Decrease the primary index by 2 and increase the last digit by 1
+        new_primary_index = primary_index - 2
+        new_last_digit = last_digit + 1
+        
+        # Return the new interface name with the updated primary index and last digit
+        return f'eth{new_primary_index}_{new_last_digit}'
+    
+    return ifname  # Return the name unchanged if it doesn't match the pattern
 
 
 def get_biosdevname(ifname: str) -> str:
