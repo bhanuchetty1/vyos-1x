@@ -14,7 +14,7 @@
             <description>Ethernet interface name</description>
           </valueHelp>
           <constraint>
-            <regex>((eth|lan)[0-9]+|(eno|ens|enp|enx).+)</regex>
+            <regex>((eth|lan)[0-9]+_+[0-9]|(eno|ens|enp|enx).+)</regex>
           </constraint>
           <constraintErrorMessage>Invalid Ethernet interface name</constraintErrorMessage>
         </properties>
