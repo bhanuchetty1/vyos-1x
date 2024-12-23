@@ -40,7 +40,7 @@ class EthernetIf(Interface):
             'bondable': True,
             'broadcast': True,
             'bridgeable': True,
-            'eternal': '(lan|eth|eno|ens|enp|enx)[0-9]+$',
+            'eternal': '(lan|eth|eno|ens|enp|enx)[0-9]+_+[0-9]$',
         }
     }
 
